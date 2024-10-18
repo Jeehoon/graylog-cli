@@ -15,6 +15,13 @@ type Client struct {
 	cfg *ClientConfig
 }
 
+type Query struct {
+	From  time.Time
+	To    time.Time
+	Range time.Duration
+	Query string
+}
+
 type ClientConfig struct {
 	Username string
 	Password string
@@ -32,33 +39,93 @@ func NewClient(cfg *ClientConfig) *Client {
 	return client
 }
 
-func (client *Client) Absolute(from, to time.Time, query string) (resp *Response, err error) {
-	vars := url.Values{}
-	vars.Set("query", query)
-	vars.Set("from", from.Format(time.RFC3339Nano))
-	vars.Set("to", to.Format(time.RFC3339Nano))
-	target := "/api/search/universal/absolute?"
+func (client *Client) Query(query *Query) (resp *Response, err error) {
 
-	return client.request(target, vars)
+	vars, err := client.parseQuery(query)
+	if err != nil {
+		return nil, err
+	}
+
+	var path string
+	if vars.Has("range") {
+		path = fmt.Sprintf("/api/search/universal/relative?%v", vars.Encode())
+	} else {
+		path = fmt.Sprintf("/api/search/universal/absolute?%v", vars.Encode())
+	}
+
+	httpResp, err := client.request(path, query)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
-func (client *Client) Relative(duration time.Duration, query string) (resp *Response, err error) {
-	vars := url.Values{}
-	vars.Set("query", query)
-	vars.Set("range", fmt.Sprintf("%.0f", duration.Seconds()))
-	target := "/api/search/universal/relative?"
+func (client *Client) Histogram(query *Query) (resp *Response, err error) {
 
-	return client.request(target, vars)
+	vars, err := client.parseQuery(query)
+	if err != nil {
+		return nil, err
+	}
 
+	var path string
+	if vars.Has("range") {
+		path = fmt.Sprintf("/api/search/universal/relative/histogram?%v", vars.Encode())
+	} else {
+		path = fmt.Sprintf("/api/search/universal/absolute/histogram?%v", vars.Encode())
+	}
+
+	httpResp, err := client.request(path, query)
+	if err != nil {
+		return nil, err
+	}
+
+	var v any
+	if err := json.NewDecoder(httpResp.Body).Decode(&v); err != nil {
+		return nil, err
+	}
+
+	fmt.Println(v)
+
+	return resp, nil
 }
 
-func (client *Client) request(target string, vars url.Values) (resp *Response, err error) {
+func (client *Client) parseQuery(query *Query) (vars url.Values, err error) {
+	if query.Range == 0 && (query.From.IsZero() || query.To.IsZero()) {
+		return nil, errors.Errorf("invalid input: query input")
+	}
+
+	vars = url.Values{}
+	vars.Set("query", query.Query)
 	vars.Set("offset", fmt.Sprintf("%d", client.cfg.Offset))
 	vars.Set("limit", fmt.Sprintf("%d", client.cfg.Limit))
 	vars.Set("sort", client.cfg.Sort)
 	vars.Set("filter", client.cfg.Filter)
 
-	url := client.cfg.Server + target + vars.Encode()
+	if !query.From.IsZero() {
+		vars.Set("from", query.From.Format(time.RFC3339Nano))
+		if query.To.IsZero() {
+			vars.Set("to", query.From.Add(query.Range).Format(time.RFC3339Nano))
+		}
+	} else if !query.To.IsZero() {
+		vars.Set("to", query.To.Format(time.RFC3339Nano))
+		if query.From.IsZero() {
+			vars.Set("from", query.To.Add(-query.Range).Format(time.RFC3339Nano))
+		}
+	} else {
+		vars.Set("range", fmt.Sprintf("%.0f", query.Range.Seconds()))
+	}
+
+	return vars, nil
+}
+
+func (client *Client) request(path string, query *Query) (httpResp *http.Response, err error) {
+
+	url := client.cfg.Server + path
 
 	httpClient := new(http.Client)
 	httpReq, err := http.NewRequest("GET", url, nil)
@@ -69,7 +136,7 @@ func (client *Client) request(target string, vars url.Values) (resp *Response, e
 	httpReq.SetBasicAuth(client.cfg.Username, client.cfg.Password)
 	httpReq.Header.Set("Accept", "application/json")
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpResp, err := httpClient.Do(httpReq)
+	httpResp, err = httpClient.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
@@ -80,12 +147,8 @@ func (client *Client) request(target string, vars url.Values) (resp *Response, e
 			return nil, err
 		}
 
-		return nil, errors.Errorf("%v %v", httpResp.Status, string(b))
+		return nil, errors.Errorf("%v / %v", httpResp.Status, string(b))
 	}
 
-	if err := json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return httpResp, err
 }
