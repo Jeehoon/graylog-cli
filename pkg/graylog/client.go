@@ -1,7 +1,6 @@
 package graylog
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -37,61 +36,6 @@ func NewClient(cfg *ClientConfig) *Client {
 	client.cfg = cfg
 
 	return client
-}
-
-func (client *Client) Query(query *Query) (resp *Response, err error) {
-
-	vars, err := client.parseQuery(query)
-	if err != nil {
-		return nil, err
-	}
-
-	var path string
-	if vars.Has("range") {
-		path = fmt.Sprintf("/api/search/universal/relative?%v", vars.Encode())
-	} else {
-		path = fmt.Sprintf("/api/search/universal/absolute?%v", vars.Encode())
-	}
-
-	httpResp, err := client.request(path, query)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {
-		return nil, err
-	}
-
-	return resp, nil
-}
-
-func (client *Client) Histogram(query *Query) (resp *Response, err error) {
-
-	vars, err := client.parseQuery(query)
-	if err != nil {
-		return nil, err
-	}
-
-	var path string
-	if vars.Has("range") {
-		path = fmt.Sprintf("/api/search/universal/relative/histogram?%v", vars.Encode())
-	} else {
-		path = fmt.Sprintf("/api/search/universal/absolute/histogram?%v", vars.Encode())
-	}
-
-	httpResp, err := client.request(path, query)
-	if err != nil {
-		return nil, err
-	}
-
-	var v any
-	if err := json.NewDecoder(httpResp.Body).Decode(&v); err != nil {
-		return nil, err
-	}
-
-	fmt.Println(v)
-
-	return resp, nil
 }
 
 func (client *Client) parseQuery(query *Query) (vars url.Values, err error) {
