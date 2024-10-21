@@ -47,8 +47,14 @@ func (client *Client) parseQuery(query *Query) (vars url.Values, err error) {
 	vars.Set("query", query.Query)
 	vars.Set("offset", fmt.Sprintf("%d", client.cfg.Offset))
 	vars.Set("limit", fmt.Sprintf("%d", client.cfg.Limit))
-	vars.Set("sort", client.cfg.Sort)
-	vars.Set("filter", client.cfg.Filter)
+
+	if client.cfg.Sort != "" {
+		vars.Set("sort", client.cfg.Sort)
+	}
+
+	if client.cfg.Filter != "" {
+		vars.Set("filter", client.cfg.Filter)
+	}
 
 	if !query.From.IsZero() {
 		vars.Set("from", query.From.Format(time.RFC3339Nano))

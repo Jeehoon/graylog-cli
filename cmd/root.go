@@ -30,7 +30,7 @@ var (
 		Server:   "https://127.0.0.1",
 		Username: "",
 		Password: "",
-		Filter:   "streams:000000000000000000000001",
+		Filter:   "", // "streams:000000000000000000000001",
 		Offset:   0,
 		Limit:    150,
 		Sort:     "timestamp:desc",
