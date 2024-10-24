@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/jeehoon/graylog-cli/pkg/timeutil"
 	"github.com/pkg/errors"
 )
 
@@ -64,16 +65,16 @@ func (client *Client) parseQuery(query *Query) (vars url.Values, err error) {
 	}
 
 	if !query.From.IsZero() {
-		vars.Set("from", query.From.Format(time.RFC3339Nano))
+		vars.Set("from", timeutil.ToString(query.From))
 		if query.To.IsZero() {
-			vars.Set("to", query.From.Add(query.Range).Format(time.RFC3339Nano))
+			vars.Set("to", timeutil.ToString(query.From.Add(query.Range)))
 		}
 	}
 
 	if !query.To.IsZero() {
-		vars.Set("to", query.To.Format(time.RFC3339Nano))
+		vars.Set("to", timeutil.ToString(query.To))
 		if query.From.IsZero() {
-			vars.Set("from", query.To.Add(-query.Range).Format(time.RFC3339Nano))
+			vars.Set("from", timeutil.ToString(query.To.Add(-query.Range)))
 		}
 	}
 

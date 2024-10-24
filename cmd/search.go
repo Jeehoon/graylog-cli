@@ -12,6 +12,7 @@ import (
 	"github.com/daoleno/tgraph"
 	"github.com/jeehoon/graylog-cli/pkg/graylog"
 	"github.com/jeehoon/graylog-cli/pkg/render"
+	"github.com/jeehoon/graylog-cli/pkg/timeutil"
 	"github.com/spf13/cobra"
 )
 
@@ -71,7 +72,7 @@ var searchCmd = &cobra.Command{
 				at := time.Unix(int64(ts), 0).UTC()
 				n := resp.Results[ts]
 
-				labels = append(labels, at.Format(time.RFC3339Nano))
+				labels = append(labels, timeutil.ToString(at))
 				data = append(data, []float64{float64(n)})
 			}
 

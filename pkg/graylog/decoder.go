@@ -162,7 +162,7 @@ func (dec *Decoder) Fields(msg *Message) (keys []string, values []string) {
 
 		switch value.(type) {
 		case float64:
-			s := fmt.Sprintf("%s:%f", key, value)
+			s := fmt.Sprintf("%f", value)
 			s = strings.TrimRight(s, "0")
 			s = strings.TrimRight(s, ".")
 			values = append(values, s)

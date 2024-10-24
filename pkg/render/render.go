@@ -2,9 +2,10 @@ package render
 
 import (
 	"fmt"
-	"github.com/jeehoon/graylog-cli/pkg/graylog"
 	"strings"
-	"time"
+
+	"github.com/jeehoon/graylog-cli/pkg/graylog"
+	"github.com/jeehoon/graylog-cli/pkg/timeutil"
 )
 
 const (
@@ -64,7 +65,7 @@ func Render(dec *graylog.Decoder, useColor bool, msg *graylog.Message) string {
 		}
 	}
 
-	timestamp := dec.Timestamp(msg).Format(time.RFC3339Nano)
+	timestamp := timeutil.ToString(dec.Timestamp(msg))
 
 	text := dec.Text(msg)
 
