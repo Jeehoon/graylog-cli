@@ -31,7 +31,7 @@ var searchCmd = &cobra.Command{
 		}
 
 		if SearchFrom != "" {
-			from, err := time.Parse(time.RFC3339Nano, SearchFrom)
+			from, err := timeutil.FromString(SearchFrom)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 				os.Exit(1)
@@ -40,7 +40,7 @@ var searchCmd = &cobra.Command{
 		}
 
 		if SearchTo != "" {
-			to, err := time.Parse(time.RFC3339Nano, SearchTo)
+			to, err := timeutil.FromString(SearchTo)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 				os.Exit(1)

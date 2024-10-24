@@ -23,3 +23,7 @@ func ToString(ts time.Time) string {
 
 	return s
 }
+
+func FromString(s string) (time.Time, error) {
+	return time.Parse(time.RFC3339Nano, s)
+}

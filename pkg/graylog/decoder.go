@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jeehoon/graylog-cli/pkg/timeutil"
 )
 
 type DecoderConfig struct {
@@ -96,7 +98,7 @@ func (dec *Decoder) Timestamp(msg *Message) (ts time.Time) {
 	}
 
 	if timestamp != "" {
-		ts, _ = time.Parse(time.RFC3339Nano, timestamp)
+		ts, _ = timeutil.FromString(timestamp)
 	}
 
 	return ts
