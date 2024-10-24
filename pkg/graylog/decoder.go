@@ -98,7 +98,7 @@ func (dec *Decoder) Timestamp(msg *Message) (ts time.Time) {
 	}
 
 	if timestamp != "" {
-		ts, _ = timeutil.FromString(timestamp)
+		ts, _ = timeutil.Parse(timestamp)
 	}
 
 	return ts

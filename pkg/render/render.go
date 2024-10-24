@@ -65,7 +65,7 @@ func Render(dec *graylog.Decoder, useColor bool, msg *graylog.Message) string {
 		}
 	}
 
-	timestamp := timeutil.ToString(dec.Timestamp(msg))
+	timestamp := timeutil.Format(dec.Timestamp(msg))
 
 	text := dec.Text(msg)
 

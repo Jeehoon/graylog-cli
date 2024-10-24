@@ -65,16 +65,16 @@ func (client *Client) parseQuery(query *Query) (vars url.Values, err error) {
 	}
 
 	if !query.From.IsZero() {
-		vars.Set("from", timeutil.ToString(query.From))
+		vars.Set("from", timeutil.Format(query.From))
 		if query.To.IsZero() {
-			vars.Set("to", timeutil.ToString(query.From.Add(query.Range)))
+			vars.Set("to", timeutil.Format(query.From.Add(query.Range)))
 		}
 	}
 
 	if !query.To.IsZero() {
-		vars.Set("to", timeutil.ToString(query.To))
+		vars.Set("to", timeutil.Format(query.To))
 		if query.From.IsZero() {
-			vars.Set("from", timeutil.ToString(query.To.Add(-query.Range)))
+			vars.Set("from", timeutil.Format(query.To.Add(-query.Range)))
 		}
 	}
 

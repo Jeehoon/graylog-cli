@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func ToString(ts time.Time) string {
+func Format(ts time.Time) string {
 	s := ts.Round(time.Millisecond).Format(time.RFC3339Nano)
 	dot := strings.Index(s, ".")
 	if dot == -1 {
@@ -24,6 +24,6 @@ func ToString(ts time.Time) string {
 	return s
 }
 
-func FromString(s string) (time.Time, error) {
+func Parse(s string) (time.Time, error) {
 	return time.Parse(time.RFC3339Nano, s)
 }

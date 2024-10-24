@@ -31,7 +31,7 @@ var searchCmd = &cobra.Command{
 		}
 
 		if SearchFrom != "" {
-			from, err := timeutil.FromString(SearchFrom)
+			from, err := timeutil.Parse(SearchFrom)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 				os.Exit(1)
@@ -40,7 +40,7 @@ var searchCmd = &cobra.Command{
 		}
 
 		if SearchTo != "" {
-			to, err := timeutil.FromString(SearchTo)
+			to, err := timeutil.Parse(SearchTo)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 				os.Exit(1)
@@ -72,7 +72,7 @@ var searchCmd = &cobra.Command{
 				at := time.Unix(int64(ts), 0).UTC()
 				n := resp.Results[ts]
 
-				labels = append(labels, timeutil.ToString(at))
+				labels = append(labels, timeutil.Format(at))
 				data = append(data, []float64{float64(n)})
 			}
 
