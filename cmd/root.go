@@ -34,6 +34,7 @@ var (
 		Offset:   0,
 		Limit:    150,
 		Sort:     "timestamp:desc",
+		Verbose:  false,
 	}
 
 	DecoderConfig = &graylog.DecoderConfig{
@@ -76,6 +77,8 @@ var (
 
 func init() {
 	rootCmd.PersistentFlags().SortFlags = false
+
+	rootCmd.PersistentFlags().BoolVarP(&ClientConfig.Verbose, "verbose", "v", ClientConfig.Verbose, "")
 
 	rootCmd.PersistentFlags().StringVar(&SearchFrom, "from", SearchFrom, "")
 	rootCmd.PersistentFlags().StringVar(&SearchTo, "to", SearchTo, "")

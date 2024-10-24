@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/pkg/errors"
@@ -29,6 +31,7 @@ type ClientConfig struct {
 	Offset   uint
 	Limit    uint
 	Sort     string
+	Verbose  bool
 }
 
 func NewClient(cfg *ClientConfig) *Client {
@@ -56,18 +59,22 @@ func (client *Client) parseQuery(query *Query) (vars url.Values, err error) {
 		vars.Set("filter", client.cfg.Filter)
 	}
 
+	if query.From.IsZero() && query.To.IsZero() && query.Range != 0 {
+		vars.Set("range", fmt.Sprintf("%.0f", query.Range.Seconds()))
+	}
+
 	if !query.From.IsZero() {
 		vars.Set("from", query.From.Format(time.RFC3339Nano))
 		if query.To.IsZero() {
 			vars.Set("to", query.From.Add(query.Range).Format(time.RFC3339Nano))
 		}
-	} else if !query.To.IsZero() {
+	}
+
+	if !query.To.IsZero() {
 		vars.Set("to", query.To.Format(time.RFC3339Nano))
 		if query.From.IsZero() {
 			vars.Set("from", query.To.Add(-query.Range).Format(time.RFC3339Nano))
 		}
-	} else {
-		vars.Set("range", fmt.Sprintf("%.0f", query.Range.Seconds()))
 	}
 
 	return vars, nil
@@ -86,6 +93,16 @@ func (client *Client) request(path string, query *Query) (httpResp *http.Respons
 	httpReq.SetBasicAuth(client.cfg.Username, client.cfg.Password)
 	httpReq.Header.Set("Accept", "application/json")
 	httpReq.Header.Set("Content-Type", "application/json")
+
+	if client.cfg.Verbose {
+		dump, err := httputil.DumpRequest(httpReq, false)
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Fprintf(os.Stderr, "%v\n", string(dump))
+	}
+
 	httpResp, err = httpClient.Do(httpReq)
 	if err != nil {
 		return nil, err
