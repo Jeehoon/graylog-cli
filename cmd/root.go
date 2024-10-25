@@ -4,9 +4,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/jeehoon/graylog-cli/pkg/graylog/client"
 	"github.com/spf13/cobra"
-
-	"github.com/jeehoon/graylog-cli/pkg/graylog"
 )
 
 var rootCmd = &cobra.Command{
@@ -22,22 +21,18 @@ func Execute() {
 }
 
 var (
-	SearchFrom  = ""
-	SearchTo    = ""
-	SearchRange = 8 * time.Hour
+	SearchFrom     = ""
+	SearchTo       = ""
+	SearchRange    = 8 * time.Hour
+	ServerEndpoint = "https://127.0.0.1"
+	Username       = ""
+	Password       = ""
+	Offset         = 0
+	Limit          = 150
+	Sort           = "timestamp:DESC"
+	Verbose        = false
 
-	ClientConfig = &graylog.ClientConfig{
-		Server:   "https://127.0.0.1",
-		Username: "",
-		Password: "",
-		Filter:   "", // "streams:000000000000000000000001",
-		Offset:   0,
-		Limit:    150,
-		Sort:     "timestamp:desc",
-		Verbose:  false,
-	}
-
-	DecoderConfig = &graylog.DecoderConfig{
+	DecoderConfig = &client.DecoderConfig{
 		HostnameKeys: []string{
 			"hostname",
 			"source",
@@ -78,14 +73,13 @@ var (
 func init() {
 	rootCmd.PersistentFlags().SortFlags = false
 
-	rootCmd.PersistentFlags().BoolVarP(&ClientConfig.Verbose, "verbose", "v", ClientConfig.Verbose, "")
+	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", Verbose, "")
 
 	rootCmd.PersistentFlags().StringVar(&SearchFrom, "from", SearchFrom, "")
 	rootCmd.PersistentFlags().StringVar(&SearchTo, "to", SearchTo, "")
 	rootCmd.PersistentFlags().DurationVar(&SearchRange, "range", SearchRange, "")
 
-	rootCmd.PersistentFlags().StringVar(&ClientConfig.Server, "server", ClientConfig.Server, "")
-	rootCmd.PersistentFlags().StringVar(&ClientConfig.Username, "username", ClientConfig.Username, "")
-	rootCmd.PersistentFlags().StringVar(&ClientConfig.Password, "password", ClientConfig.Password, "")
-	rootCmd.PersistentFlags().StringVar(&ClientConfig.Filter, "filter", ClientConfig.Filter, "")
+	rootCmd.PersistentFlags().StringVar(&ServerEndpoint, "server", ServerEndpoint, "")
+	rootCmd.PersistentFlags().StringVar(&Username, "username", Username, "")
+	rootCmd.PersistentFlags().StringVar(&Password, "password", Password, "")
 }

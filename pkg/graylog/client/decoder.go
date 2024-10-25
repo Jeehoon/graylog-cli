@@ -1,4 +1,4 @@
-package graylog
+package client
 
 import (
 	"fmt"
@@ -76,10 +76,10 @@ func NewDecoder(cfg *DecoderConfig) *Decoder {
 	return dec
 }
 
-func (dec *Decoder) Hostname(msg *Message) string {
+func (dec *Decoder) Hostname(msg map[string]any) string {
 	hostname := ""
 	for _, key := range dec.cfg.HostnameKeys {
-		if v, has := msg.Message[key]; has {
+		if v, has := msg[key]; has {
 			hostname = v.(string)
 			break
 		}
@@ -88,10 +88,10 @@ func (dec *Decoder) Hostname(msg *Message) string {
 	return hostname
 }
 
-func (dec *Decoder) Timestamp(msg *Message) (ts time.Time) {
+func (dec *Decoder) Timestamp(msg map[string]any) (ts time.Time) {
 	timestamp := ""
 	for _, key := range dec.cfg.TimestampKeys {
-		if v, has := msg.Message[key]; has {
+		if v, has := msg[key]; has {
 			timestamp = v.(string)
 			break
 		}
@@ -104,10 +104,10 @@ func (dec *Decoder) Timestamp(msg *Message) (ts time.Time) {
 	return ts
 }
 
-func (dec *Decoder) Level(msg *Message) Level {
+func (dec *Decoder) Level(msg map[string]any) Level {
 	level := LevelUnkown
 	for _, key := range dec.cfg.LevelKeys {
-		if v, has := msg.Message[key]; has {
+		if v, has := msg[key]; has {
 			switch v.(type) {
 			case float64:
 				level = Level(v.(float64))
@@ -124,10 +124,10 @@ func (dec *Decoder) Level(msg *Message) Level {
 	return level
 }
 
-func (dec *Decoder) Text(msg *Message) string {
+func (dec *Decoder) Text(msg map[string]any) string {
 	message := "-----"
 	for _, key := range dec.cfg.TextKeys {
-		if v, has := msg.Message[key]; has {
+		if v, has := msg[key]; has {
 			message = v.(string)
 			break
 		}
@@ -136,17 +136,17 @@ func (dec *Decoder) Text(msg *Message) string {
 	return message
 }
 
-func (dec *Decoder) Fields(msg *Message) (keys []string, values []string) {
+func (dec *Decoder) Fields(msg map[string]any) (keys []string, values []string) {
 	// find keys
 	if len(dec.cfg.FieldKeys) != 0 {
 		for _, key := range dec.cfg.FieldKeys {
-			if _, has := msg.Message[key]; !has {
+			if _, has := msg[key]; !has {
 				continue
 			}
 			keys = append(keys, key)
 		}
 	} else {
-		for key := range msg.Message {
+		for key := range msg {
 			if _, has := dec.skipFieldKeys[key]; has {
 				continue
 			}
@@ -157,7 +157,7 @@ func (dec *Decoder) Fields(msg *Message) (keys []string, values []string) {
 
 	// find values
 	for _, key := range keys {
-		value, has := msg.Message[key]
+		value, has := msg[key]
 		if !has {
 			continue
 		}

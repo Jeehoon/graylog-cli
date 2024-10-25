@@ -4,15 +4,14 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
 	"time"
 
 	"github.com/daoleno/tgraph"
-	"github.com/jeehoon/graylog-cli/pkg/graylog"
-	"github.com/jeehoon/graylog-cli/pkg/render"
-	"github.com/jeehoon/graylog-cli/pkg/timeutil"
+	"github.com/jeehoon/graylog-cli/pkg/graylog/client"
 	"github.com/spf13/cobra"
 )
 
@@ -21,87 +20,121 @@ var searchCmd = &cobra.Command{
 	Use:   "search",
 	Short: "A brief description of your command",
 	Run: func(cmd *cobra.Command, args []string) {
-		client := graylog.NewClient(ClientConfig)
+		cfg := &client.Config{
+			Endpoint: ServerEndpoint,
+			Username: Username,
+			Password: Password,
+		}
 
-		var query = new(graylog.Query)
+		graylog := client.NewClient(cfg)
+
+		//requestId := "671a67509fa9a642c4ab9041"
+		requestId := "aaaaaaaaaaaaaaaaaaaaaaaa"
+		queryId := "11111111-1111-1111-1111-111111111111"
+		messageId := "22222222-2222-2222-2222-222222222222"
+		histogramId := "33333333-3333-3333-3333-333333333333"
+		termsId := "44444444-4444-4444-4444-444444444444"
+
+		q := "*"
 		if len(args) != 0 {
-			query.Query = args[0]
+			q = args[0]
+		}
+
+		req := client.NewSearchRequest(requestId)
+		query := client.NewSearchQuery(queryId)
+		query.SetQuery(q)
+
+		if SearchFrom != "" && SearchTo != "" {
+			query.SetTimerangeAbsolute(SearchFrom, SearchTo)
 		} else {
-			query.Query = "*"
-		}
-
-		if SearchFrom != "" {
-			from, err := timeutil.Parse(SearchFrom)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
-				os.Exit(1)
-			}
-			query.From = from
-		}
-
-		if SearchTo != "" {
-			to, err := timeutil.Parse(SearchTo)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
-				os.Exit(1)
-			}
-			query.To = to
-		}
-
-		if SearchRange != 0 {
-			query.Range = SearchRange
+			query.SetTimerangeRelative(int(SearchRange / time.Second))
 		}
 
 		if Histogram {
-			resp, err := client.Histogram(query, HistogramInterval)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
-				os.Exit(1)
+			query.AppendSearchHistogram(histogramId)
+		} else if TermsTop != "" {
+			query.AppendSearchTop(termsId, TermsTop, 20)
+		} else {
+			query.AppendSearchMessage(messageId, Limit, Offset, Sort)
+		}
+
+		req.AddQuery(query)
+
+		if _, err := graylog.Post("/api/views/search", req); err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: %v", err)
+			os.Exit(1)
+		}
+
+		httpResp, err := graylog.Post("/api/views/search/"+requestId+"/execute", nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: %v", err)
+			os.Exit(1)
+		}
+
+		var resp *client.SearchResponse
+		if err := json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: %v", err)
+			os.Exit(1)
+		}
+
+		dec := client.NewDecoder(DecoderConfig)
+
+		result, has := resp.Results[queryId]
+		if !has {
+			fmt.Fprintf(os.Stderr, "ERROR: not found query result of %v", queryId)
+			os.Exit(1)
+		}
+
+		if typ, has := result.SearchTypes[messageId]; has {
+			for idx := len(typ.Messages) - 1; idx >= 0; idx-- {
+				msg := typ.Messages[idx]
+				fmt.Println(client.Render(dec, true, msg.Message))
 			}
+			fmt.Printf("= Range: %v ~ %v\n", typ.EffectiveTimerange.From, typ.EffectiveTimerange.To)
+			fmt.Printf("= Total: %v\n", typ.TotalResults)
+		}
+
+		if typ, has := result.SearchTypes[termsId]; has {
 
 			labels := []string{}
 			data := [][]float64{}
-			var keys UintSlice
 
-			for ts := range resp.Results {
-				keys = append(keys, ts)
+			for _, row := range typ.Rows {
+				if len(row.Key) == 0 {
+					continue
+				}
+
+				labels = append(labels, row.Key[0])
+				data = append(data, []float64{row.Values[0].Value})
 			}
-			keys.Sort()
-
-			for _, ts := range keys {
-				at := time.Unix(int64(ts), 0).UTC()
-				n := resp.Results[ts]
-
-				labels = append(labels, timeutil.Format(at))
-				data = append(data, []float64{float64(n)})
-			}
-
 			tgraph.Chart("", labels, data, nil, nil, 50, false, Tick)
-
-			fmt.Println()
-			fmt.Printf("= Query: %v\n", query.Query)
-			fmt.Printf("= Range: %v ~ %v\n", resp.QueriedTimerange.From, resp.QueriedTimerange.To)
-			fmt.Printf("= Time:  %v\n", resp.Time)
-		} else {
-			resp, err := client.Query(query)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
-				os.Exit(1)
-			}
-
-			useColor := UseColor()
-			dec := graylog.NewDecoder(DecoderConfig)
-			for idx := len(resp.Messages) - 1; idx >= 0; idx-- {
-				msg := resp.Messages[idx]
-				fmt.Println(render.Render(dec, useColor, msg))
-			}
-
-			fmt.Println()
-			fmt.Printf("= Query: %v\n", resp.Query)
-			fmt.Printf("= Range: %v ~ %v\n", resp.From, resp.To)
-			fmt.Printf("= Total: %v\n", resp.TotalResults)
-			fmt.Printf("= Time:  %v\n", resp.Time)
+			fmt.Printf("= Range: %v ~ %v\n", typ.EffectiveTimerange.From, typ.EffectiveTimerange.To)
+			fmt.Printf("= Total: %v\n", typ.Total)
 		}
+
+		if typ, has := result.SearchTypes[histogramId]; has {
+
+			labels := []string{}
+			data := [][]float64{}
+
+			for _, row := range typ.Rows {
+				if len(row.Key) == 0 {
+					continue
+				}
+
+				labels = append(labels, row.Key[0])
+				data = append(data, []float64{row.Values[0].Value})
+			}
+			tgraph.Chart("", labels, data, nil, nil, 50, false, Tick)
+			fmt.Printf("= Range: %v ~ %v\n", typ.EffectiveTimerange.From, typ.EffectiveTimerange.To)
+			fmt.Printf("= Total: %v\n", typ.Total)
+		}
+		fmt.Printf("= State: %v\n", result.State)
+		if len(result.Errors) != 0 {
+			fmt.Printf("= Errors: %v\n", result.Errors)
+		}
+		fmt.Printf("= Query: %v\n", result.Query.Query.QueryString)
+		fmt.Println()
 
 	},
 }
@@ -114,9 +147,9 @@ func (x UintSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x UintSlice) Sort()              { sort.Sort(x) }
 
 var (
-	Histogram         = false
-	HistogramInterval = "minute"
-	Tick              = "■"
+	Histogram = false
+	TermsTop  = ""
+	Tick      = "■"
 )
 
 func init() {
@@ -124,9 +157,9 @@ func init() {
 
 	searchCmd.Flags().SortFlags = false
 
-	searchCmd.Flags().UintVar(&ClientConfig.Offset, "offset", ClientConfig.Offset, "")
-	searchCmd.Flags().UintVar(&ClientConfig.Limit, "limit", ClientConfig.Limit, "")
-	searchCmd.Flags().StringVar(&ClientConfig.Sort, "sort", ClientConfig.Sort, "")
+	searchCmd.Flags().IntVar(&Offset, "offset", Offset, "")
+	searchCmd.Flags().IntVar(&Limit, "limit", Limit, "")
+	searchCmd.Flags().StringVar(&Sort, "sort", Sort, "")
 
 	// Search
 	searchCmd.Flags().StringSliceVar(&DecoderConfig.HostnameKeys, "hostname", DecoderConfig.HostnameKeys, "")
@@ -138,6 +171,6 @@ func init() {
 
 	// Histogram
 	searchCmd.Flags().BoolVarP(&Histogram, "histogram", "H", Histogram, "")
-	searchCmd.Flags().StringVar(&HistogramInterval, "interval", HistogramInterval, "")
+	searchCmd.Flags().StringVarP(&TermsTop, "top", "T", TermsTop, "")
 	searchCmd.Flags().StringVar(&Tick, "tick", Tick, "")
 }

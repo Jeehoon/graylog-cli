@@ -1,4 +1,4 @@
-package graylog
+package client
 
 const (
 	LevelEmergency     Level = 0
