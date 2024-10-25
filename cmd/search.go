@@ -7,10 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
+	"strings"
 	"time"
 
-	"github.com/daoleno/tgraph"
 	"github.com/jeehoon/graylog-cli/pkg/graylog/client"
 	"github.com/spf13/cobra"
 )
@@ -28,7 +27,7 @@ var searchCmd = &cobra.Command{
 
 		graylog := client.NewClient(cfg)
 
-		//requestId := "671a67509fa9a642c4ab9041"
+		// TODO rendom generate
 		requestId := "aaaaaaaaaaaaaaaaaaaaaaaa"
 		queryId := "11111111-1111-1111-1111-111111111111"
 		messageId := "22222222-2222-2222-2222-222222222222"
@@ -90,6 +89,7 @@ var searchCmd = &cobra.Command{
 				msg := typ.Messages[idx]
 				fmt.Println(client.Render(dec, true, msg.Message))
 			}
+			fmt.Printf("========== Messages ==========\n")
 			fmt.Printf("= Range: %v ~ %v\n", typ.EffectiveTimerange.From, typ.EffectiveTimerange.To)
 			fmt.Printf("= Total: %v\n", typ.TotalResults)
 		}
@@ -97,17 +97,21 @@ var searchCmd = &cobra.Command{
 		if typ, has := result.SearchTypes[termsId]; has {
 
 			labels := []string{}
-			data := [][]float64{}
+			data := []float64{}
 
 			for _, row := range typ.Rows {
 				if len(row.Key) == 0 {
 					continue
 				}
 
-				labels = append(labels, row.Key[0])
-				data = append(data, []float64{row.Values[0].Value})
+				key := row.Key[0]
+				value := row.Values[0].Value
+				labels = append(labels, key)
+				data = append(data, value)
 			}
-			tgraph.Chart("", labels, data, nil, nil, 50, false, Tick)
+
+			Chart(labels, data, Tick)
+			fmt.Printf("========== Top Values of [%v] field ==========\n", TermsTop)
 			fmt.Printf("= Range: %v ~ %v\n", typ.EffectiveTimerange.From, typ.EffectiveTimerange.To)
 			fmt.Printf("= Total: %v\n", typ.Total)
 		}
@@ -115,17 +119,21 @@ var searchCmd = &cobra.Command{
 		if typ, has := result.SearchTypes[histogramId]; has {
 
 			labels := []string{}
-			data := [][]float64{}
+			data := []float64{}
 
 			for _, row := range typ.Rows {
 				if len(row.Key) == 0 {
 					continue
 				}
 
-				labels = append(labels, row.Key[0])
-				data = append(data, []float64{row.Values[0].Value})
+				key := row.Key[0]
+				value := row.Values[0].Value
+				labels = append(labels, key)
+				data = append(data, value)
 			}
-			tgraph.Chart("", labels, data, nil, nil, 50, false, Tick)
+
+			Chart(labels, data, Tick)
+			fmt.Printf("========== Histogram ==========\n")
 			fmt.Printf("= Range: %v ~ %v\n", typ.EffectiveTimerange.From, typ.EffectiveTimerange.To)
 			fmt.Printf("= Total: %v\n", typ.Total)
 		}
@@ -138,13 +146,6 @@ var searchCmd = &cobra.Command{
 
 	},
 }
-
-type UintSlice []uint64
-
-func (x UintSlice) Len() int           { return len(x) }
-func (x UintSlice) Less(i, j int) bool { return x[i] < x[j] }
-func (x UintSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x UintSlice) Sort()              { sort.Sort(x) }
 
 var (
 	Histogram = false
@@ -173,4 +174,43 @@ func init() {
 	searchCmd.Flags().BoolVarP(&Histogram, "histogram", "H", Histogram, "")
 	searchCmd.Flags().StringVarP(&TermsTop, "top", "T", TermsTop, "")
 	searchCmd.Flags().StringVar(&Tick, "tick", Tick, "")
+}
+
+func Chart(labels []string, data []float64, tick string) {
+	length := len(labels)
+	if len(labels) > len(data) {
+		length = len(data)
+	}
+
+	var file = os.Stdout
+	var maxLabelLength int
+	var maxValue float64
+
+	for i := 0; i < length; i++ {
+		label := labels[i]
+		value := data[i]
+		if maxLabelLength < len(label) {
+			maxLabelLength = len(label)
+		}
+
+		if maxValue < value {
+			maxValue = value
+		}
+	}
+
+	maxBarLength := float64(50)
+	labelFmt := fmt.Sprintf("%%%ds", maxLabelLength)
+
+	for i := 0; i < length; i++ {
+		label := labels[i]
+		value := data[i]
+
+		barLength := (value / maxValue) * maxBarLength
+		bar := strings.Repeat(tick, int(barLength))
+
+		s := fmt.Sprintf(labelFmt+":%s %.3f", label, bar, value)
+		s = strings.TrimRight(s, "0")
+		s = strings.TrimRight(s, ".")
+		fmt.Fprintln(file, s)
+	}
 }

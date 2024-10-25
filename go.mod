@@ -4,6 +4,7 @@ go 1.22
 
 require (
 	github.com/daoleno/tgraph v0.0.2
+	github.com/dustin/go-humanize v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.8.1
 )
