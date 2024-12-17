@@ -4,6 +4,8 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,6 +15,14 @@ import (
 	"github.com/jeehoon/graylog-cli/pkg/graylog/client"
 	"github.com/spf13/cobra"
 )
+
+func randomHex(n int) (string, error) {
+	bytes := make([]byte, n)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}
 
 // searchCmd represents the search command
 var searchCmd = &cobra.Command{
@@ -27,12 +37,15 @@ var searchCmd = &cobra.Command{
 
 		graylog := client.NewClient(cfg)
 
+		val, _ := randomHex(6)
+
 		// TODO rendom generate
-		requestId := "aaaaaaaaaaaaaaaaaaaaaaaa"
-		queryId := "11111111-1111-1111-1111-111111111111"
-		messageId := "22222222-2222-2222-2222-222222222222"
-		histogramId := "33333333-3333-3333-3333-333333333333"
-		termsId := "44444444-4444-4444-4444-444444444444"
+
+		requestId := fmt.Sprintf("aaaaaaaaaaaa%v", val)
+		queryId := fmt.Sprintf("11111111-1111-1111-1111-%v", val)
+		messageId := fmt.Sprintf("22222222-2222-2222-2222-%v", val)
+		histogramId := fmt.Sprintf("33333333-3333-3333-3333-%v", val)
+		termsId := fmt.Sprintf("44444444-4444-4444-4444-%v", val)
 
 		q := "*"
 		if len(args) != 0 {
