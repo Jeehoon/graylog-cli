@@ -6,7 +6,6 @@ package cmd
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -30,6 +29,7 @@ var searchCmd = &cobra.Command{
 	Short: "A brief description of your command",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := &client.Config{
+			Verbose:  Verbose,
 			Endpoint: ServerEndpoint,
 			Username: Username,
 			Password: Password,
@@ -72,26 +72,45 @@ var searchCmd = &cobra.Command{
 
 		req.AddQuery(query)
 
-		if _, err := graylog.Post("/api/views/search", req); err != nil {
+		// Search
+		if err := graylog.Post("/api/views/search", req, nil); err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %v", err)
 			os.Exit(1)
 		}
 
-		httpResp, err := graylog.Post("/api/views/search/"+requestId+"/execute", nil)
-		if err != nil {
+		// Execute
+		var execResp *client.ExecuteResponse
+		if err := graylog.Post("/api/views/search/"+requestId+"/execute", nil, &execResp); err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %v", err)
 			os.Exit(1)
 		}
 
-		var resp *client.SearchResponse
-		if err := json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: %v", err)
-			os.Exit(1)
+		var results map[string]*client.Result
+
+		if execResp.Execution.Done {
+			results = execResp.Results
+		} else {
+			for {
+				var statusResp *client.ExecuteResponse
+
+				path := fmt.Sprintf("/api/views/searchjobs/%v/%v/status", execResp.ExecutingNode, execResp.Id)
+				if err := graylog.Get(path, nil, &statusResp); err != nil {
+					fmt.Fprintf(os.Stderr, "ERROR: %v", err)
+					os.Exit(1)
+				}
+
+				if statusResp.Execution.Done {
+					results = statusResp.Results
+					break
+				}
+
+				time.Sleep(500 * time.Millisecond)
+			}
 		}
 
 		dec := client.NewDecoder(DecoderConfig)
 
-		result, has := resp.Results[queryId]
+		result, has := results[queryId]
 		if !has {
 			fmt.Fprintf(os.Stderr, "ERROR: not found query result of %v", queryId)
 			os.Exit(1)

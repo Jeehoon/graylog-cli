@@ -3,13 +3,16 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/pkg/errors"
 )
 
 type Config struct {
+	Verbose  bool
 	Endpoint string
 	Username string
 	Password string
@@ -25,18 +28,26 @@ func NewClient(cfg *Config) *Client {
 	return client
 }
 
-func (client *Client) Post(path string, req any) (httpResp *http.Response, err error) {
-	var buf = new(bytes.Buffer)
-	if err := json.NewEncoder(buf).Encode(req); err != nil {
-		return nil, err
+func (client *Client) request(method string, path string, req, resp any) (err error) {
+
+	var body io.Reader
+	var reqBody []byte
+
+	if req != nil {
+		var buf = new(bytes.Buffer)
+		if err := json.NewEncoder(buf).Encode(req); err != nil {
+			return err
+		}
+		reqBody = buf.Bytes()
+		body = bytes.NewBuffer(reqBody)
 	}
 
 	url := client.cfg.Endpoint + path
 
 	httpClient := new(http.Client)
-	httpReq, err := http.NewRequest("POST", url, buf)
+	httpReq, err := http.NewRequest(method, url, body)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	httpReq.SetBasicAuth(client.cfg.Username, client.cfg.Password)
@@ -45,19 +56,44 @@ func (client *Client) Post(path string, req any) (httpResp *http.Response, err e
 	httpReq.Header.Set("X-Requested-By", "XMLHttpRequest")
 	httpReq.Header.Set("X-Requested-With", "XMLHttpRequest")
 
-	httpResp, err = httpClient.Do(httpReq)
+	httpResp, err := httpClient.Do(httpReq)
 	if err != nil {
-		return nil, err
+		return err
+	}
+	defer httpResp.Body.Close()
+
+	respBody, err := io.ReadAll(httpResp.Body)
+	if err != nil {
+		return err
+	}
+
+	if client.cfg.Verbose {
+		fmt.Println("Request:", method, url, httpResp.Status)
+		fmt.Println("Request Body:", strings.TrimSpace(string(reqBody)))
+		fmt.Println("Response Body:", strings.TrimSpace(string(respBody)))
 	}
 
 	if httpResp.StatusCode > 299 {
 		b, err := io.ReadAll(httpResp.Body)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		return nil, errors.Errorf("%v / %v", httpResp.Status, string(b))
+		return errors.Errorf("%v / %v", httpResp.Status, string(b))
 	}
 
-	return httpResp, nil
+	buff := bytes.NewBuffer(respBody)
+	if err := json.NewDecoder(buff).Decode(&resp); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (client *Client) Post(path string, req, resp any) (err error) {
+	return client.request("POST", path, req, resp)
+}
+
+func (client *Client) Get(path string, req, resp any) (err error) {
+	return client.request("GET", path, req, resp)
 }

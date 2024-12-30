@@ -117,10 +117,17 @@ func (req *SearchRequest) AddQuery(query *SearchQuery) {
 	req.Queries = append(req.Queries, query)
 }
 
-type SearchResponse struct {
-	Execution map[string]any     `json:"execution"`
-	Results   map[string]*Result `json:"results"`
-	Id        string             `json:"id"`
-	Owner     string             `json:"owner"`
-	SearchId  string             `json:"search_id"`
+type ExecuteResponse struct {
+	Execution     Execution          `json:"execution"`
+	Results       map[string]*Result `json:"results"`
+	Id            string             `json:"id"`
+	Owner         string             `json:"owner"`
+	SearchId      string             `json:"search_id"`
+	ExecutingNode string             `json:"executing_node"`
+}
+
+type Execution struct {
+	Done                   bool `json:"done"`
+	Cancelled              bool `json:"cancelled"`
+	CompletedExceptionally bool `json:"completed_exceptionally"`
 }
