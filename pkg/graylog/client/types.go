@@ -117,7 +117,7 @@ func (req *SearchRequest) AddQuery(query *SearchQuery) {
 	req.Queries = append(req.Queries, query)
 }
 
-type ExecuteResponse struct {
+type SearchResponse struct {
 	Execution     Execution          `json:"execution"`
 	Results       map[string]*Result `json:"results"`
 	Id            string             `json:"id"`

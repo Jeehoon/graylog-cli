@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"os"
-	"time"
 
 	"github.com/jeehoon/graylog-cli/pkg/graylog/client"
 	"github.com/spf13/cobra"
@@ -23,7 +22,7 @@ func Execute() {
 var (
 	SearchFrom     = ""
 	SearchTo       = ""
-	SearchRange    = 8 * time.Hour
+	SearchRange    = "8h"
 	ServerEndpoint = "https://127.0.0.1"
 	Username       = ""
 	Password       = ""
@@ -77,7 +76,7 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&SearchFrom, "from", SearchFrom, "")
 	rootCmd.PersistentFlags().StringVar(&SearchTo, "to", SearchTo, "")
-	rootCmd.PersistentFlags().DurationVar(&SearchRange, "range", SearchRange, "")
+	rootCmd.PersistentFlags().StringVar(&SearchRange, "range", SearchRange, "example. 1M 1w 1d 8h 30m 30s")
 
 	rootCmd.PersistentFlags().StringVar(&ServerEndpoint, "server", ServerEndpoint, "")
 	rootCmd.PersistentFlags().StringVar(&Username, "username", Username, "")

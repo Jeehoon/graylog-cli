@@ -1,6 +1,3 @@
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -56,7 +53,12 @@ var searchCmd = &cobra.Command{
 		if SearchFrom != "" && SearchTo != "" {
 			query.SetTimerangeAbsolute(SearchFrom, SearchTo)
 		} else {
-			query.SetTimerangeRelative(int(SearchRange / time.Second))
+			duration, err := ParseDuration(SearchRange)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "ERROR: %v", err)
+				os.Exit(1)
+			}
+			query.SetTimerangeRelative(int(duration / time.Second))
 		}
 
 		if Histogram {
@@ -76,38 +78,26 @@ var searchCmd = &cobra.Command{
 		}
 
 		// Execute
-		var execResp *client.ExecuteResponse
-		if err := graylog.Post("/api/views/search/"+requestId+"/execute", nil, &execResp); err != nil {
+		var resp *client.SearchResponse
+
+		if err := graylog.Post("/api/views/search/"+requestId+"/execute", nil, &resp); err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %v", err)
 			os.Exit(1)
 		}
 
-		var results map[string]*client.Result
-
-		if execResp.Execution.Done {
-			results = execResp.Results
-		} else {
-			for {
-				var statusResp *client.ExecuteResponse
-
-				path := fmt.Sprintf("/api/views/searchjobs/%v/%v/status", execResp.ExecutingNode, execResp.Id)
-				if err := graylog.Get(path, nil, &statusResp); err != nil {
-					fmt.Fprintf(os.Stderr, "ERROR: %v", err)
-					os.Exit(1)
-				}
-
-				if statusResp.Execution.Done {
-					results = statusResp.Results
-					break
-				}
-
-				time.Sleep(500 * time.Millisecond)
+		// Search Status
+		for !resp.Execution.Done {
+			path := fmt.Sprintf("/api/views/searchjobs/%v/%v/status", resp.ExecutingNode, resp.Id)
+			if err := graylog.Get(path, nil, &resp); err != nil {
+				fmt.Fprintf(os.Stderr, "ERROR: %v", err)
+				os.Exit(1)
 			}
+			time.Sleep(500 * time.Millisecond)
 		}
 
 		dec := client.NewDecoder(DecoderConfig)
 
-		result, has := results[queryId]
+		result, has := resp.Results[queryId]
 		if !has {
 			fmt.Fprintf(os.Stderr, "ERROR: not found query result of %v", queryId)
 			os.Exit(1)
