@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jeehoon/graylog-cli/pkg/graylog/client"
 	"github.com/spf13/cobra"
 )
@@ -37,15 +38,11 @@ var searchCmd = &cobra.Command{
 
 		graylog := client.NewClient(cfg)
 
-		val, _ := randomHex(6)
-
-		// TODO rendom generate
-
-		requestId := fmt.Sprintf("aaaaaaaaaaaa%v", val)
-		queryId := fmt.Sprintf("11111111-1111-1111-1111-%v", val)
-		messageId := fmt.Sprintf("22222222-2222-2222-2222-%v", val)
-		histogramId := fmt.Sprintf("33333333-3333-3333-3333-%v", val)
-		termsId := fmt.Sprintf("44444444-4444-4444-4444-%v", val)
+		requestId, _ := randomHex(12)
+		queryId := uuid.New().String()
+		messageId := uuid.New().String()
+		histogramId := uuid.New().String()
+		termsId := uuid.New().String()
 
 		q := "*"
 		if len(args) != 0 {
