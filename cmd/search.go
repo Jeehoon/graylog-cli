@@ -103,10 +103,12 @@ var searchCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		useColor := UseColor()
+
 		if typ, has := result.SearchTypes[messageId]; has {
 			for idx := len(typ.Messages) - 1; idx >= 0; idx-- {
 				msg := typ.Messages[idx]
-				fmt.Println(client.Render(dec, true, msg.Message))
+				fmt.Println(client.Render(dec, useColor, msg.Message))
 			}
 			fmt.Printf("========== Messages ==========\n")
 			fmt.Printf("= Range: %v ~ %v\n", typ.EffectiveTimerange.From, typ.EffectiveTimerange.To)
